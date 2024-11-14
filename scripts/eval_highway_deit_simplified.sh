@@ -1,3 +1,8 @@
+#!/bin/bash
+# eval_highway_deit_simplified.sh
+# Created by: Jonathan Mikler - 14/Nov/24
+
+##### Parameters
 path='/zhome/57/8/181461/thesis/lgvit/lgvit_repo'
 model_path="${path}/models/deit_highway"
 
@@ -23,25 +28,9 @@ PAPER_NAME=LGViT  # base, SDN, PABEE, PCEE, BERxiT, ViT-EE, LGViT
 export CUDA_VISIBLE_DEVICES=0
 #export WANDB_PROJECT=${BACKBONE}_${DATANAME}_eval
 
-# python -m torch.distributed.launch --nproc_per_node=1 --master_port=29566 --nnodes=1 "${path}/examples/run_highway_deit.py" \
-#     --help \
-#     --run_name ${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_${PAPER_NAME} \
-#     --image_processor_name $MODEL_NAME \
-#     --config_name $MODEL_NAME \
-#     --model_name_or_path /xxx/path/to/Early_Exit/checkpoint_path \
-#     --dataset_name $DATASET \
-#     --output_dir ../outputs/$MODEL_TYPE/$DATASET/$PAPER_NAME/$EXIT_STRATEGY/ \
-#     --remove_unused_columns False \
-#     --backbone $BACKBONE \
-#     --exit_strategy $EXIT_STRATEGY \
-#     --do_train False \
-#     --do_eval \
-#     --per_device_eval_batch_size 1 \
-#     --seed 777 \
-#     --report_to wandb \
-#     --use_auth_token False \
+##### Program run
 
-python "${path}/examples/run_highway_deit.py" --help \
+python "${path}/examples/run_highway_deit.py" \
     --run_name ${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_${PAPER_NAME} \
     --image_processor_name $MODEL_NAME \
     --config_name $MODEL_NAME \
