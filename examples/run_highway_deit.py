@@ -651,29 +651,20 @@ class TrainerwithExits(Trainer):
         return (loss, logits, labels, exit_layer)
 
 
-@record
+# See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
-    # See all possible arguments in src/transformers/training_args.py
-    # or by passing the --help flag to this script.
-    # We now keep distinct sets of args, for a cleaner separation of concerns.
-
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script and it's the path to a json file,
-        # let's parse it to get our arguments.
+        # Single argument; json path
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
     trans_utils.send_example_telemetry("run_image_classification_highway", model_args, data_args)
 
     # Setup logging
     logging.basicConfig(
-        # format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         format="%(levelname)s-%(name)s-%(asctime)s: %(message)s",
-        # datefmt="%m/%d/%Y %H:%M:%S",
         datefmt="%H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
@@ -688,7 +679,7 @@ def main():
     # Log on each process the small summary:
     logger.warning(
         f"Process Summary:" + \
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}" +\
+        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu} " +\
         f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
     )
     logger.info(f"model parameters {model_args}")
