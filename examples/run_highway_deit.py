@@ -23,6 +23,7 @@ import evaluate
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader, Dataset
 from datasets import load_dataset
 from PIL import Image
@@ -68,10 +69,9 @@ from transformers.trainer_pt_utils import (
     nested_xla_mesh_reduce,
     reissue_pt_warnings,
 )
+
+import transformers.utils as trans_utils
 from transformers.utils import (
-    ENV_VARS_TRUE_VALUES,
-    check_min_version,
-    send_example_telemetry,
     is_sagemaker_mp_enabled,
 )
 from transformers.data.data_collator import DataCollator
@@ -85,7 +85,7 @@ from transformers.trainer_callback import TrainerCallback
 from timm.data.auto_augment import RandAugment
 from timm.data.random_erasing import RandomErasing
 
-if is_sagemaker_mp_enabled():
+if trans_utils.is_sagemaker_mp_enabled():
     import smdistributed.modelparallel.torch as smp
     from smdistributed.modelparallel import __version__ as SMP_VERSION
 
@@ -598,7 +598,7 @@ class TrainerwithExits(Trainer):
             labels = None
 
         with torch.no_grad():
-            if is_sagemaker_mp_enabled():  # false
+            if trans_utils.is_sagemaker_mp_enabled():  # false
                 raw_outputs = smp_forward_only(model, inputs)
                 if has_labels or loss_without_labels:
                     if isinstance(raw_outputs, dict):
@@ -651,6 +651,7 @@ class TrainerwithExits(Trainer):
         return (loss, logits, labels, exit_layer)
 
 
+@record
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
@@ -666,27 +667,33 @@ def main():
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_image_classification_highway", model_args, data_args)
+    trans_utils.send_example_telemetry("run_image_classification_highway", model_args, data_args)
 
     # Setup logging
     logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
+        # format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        format="%(levelname)s-%(name)s-%(asctime)s: %(message)s",
+        # datefmt="%m/%d/%Y %H:%M:%S",
+        datefmt="%H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
+    logger.name = "main"
     transformers.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
     # Log on each process the small summary:
     logger.warning(
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
-        + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
+        f"Process Summary:" + \
+        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}" +\
+        f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
     )
-    logger.info(f"Training/evaluation parameters {training_args}")
+    logger.info(f"model parameters {model_args}")
+    # logger.info(f"Training/evaluation parameters {training_args}")
+    logger.info(f"data parameters {data_args}")
 
     # Detecting last checkpoint.
     last_checkpoint = None
@@ -706,11 +713,11 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    # Initialize our dataset and prepare it for the 'image-classification' task.
+    # Initialize our dataset and prepare i  t for the 'image-classification' task.
     if data_args.dataset_name is not None:
         dataset = load_dataset(
-            data_args.dataset_name,
-            data_args.dataset_config_name,
+            path=data_args.dataset_name,
+            name=data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
             task="image-classification",
             use_auth_token=True if model_args.use_auth_token else None,
