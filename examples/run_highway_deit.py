@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader, Dataset
-from datasets import load_dataset
+import datasets
 from PIL import Image
 from torchvision.transforms import (
     CenterCrop,
@@ -654,6 +654,7 @@ class TrainerwithExits(Trainer):
 # See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    task_arg = datasets.ImageClassification(image_column='img', label_column='fine_label')
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # Single argument; json path
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
@@ -682,8 +683,11 @@ def main():
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu} " +\
         f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
     )
+    print("----")
+    logger.info(f"Training/evaluation parameters {training_args}")
+    print("----")
     logger.info(f"model parameters {model_args}")
-    # logger.info(f"Training/evaluation parameters {training_args}")
+    print("----")
     logger.info(f"data parameters {data_args}")
 
     # Detecting last checkpoint.
@@ -706,11 +710,11 @@ def main():
 
     # Initialize our dataset and prepare i  t for the 'image-classification' task.
     if data_args.dataset_name is not None:
-        dataset = load_dataset(
+        dataset = datasets.load_dataset(
             path=data_args.dataset_name,
             name=data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
-            task="image-classification",
+            task=task_arg,
             use_auth_token=True if model_args.use_auth_token else None,
             # ignore_verifications=True,
         )
@@ -720,11 +724,12 @@ def main():
             data_files["train"] = os.path.join(data_args.train_dir, "**")
         if data_args.validation_dir is not None:
             data_files["validation"] = os.path.join(data_args.validation_dir, "**")
-        dataset = load_dataset(
+            
+        dataset = datasets.load_dataset(
             "imagefolder",
             data_files=data_files,
             cache_dir=model_args.cache_dir,
-            task="image-classification",
+            task=task_arg,
         )
 
     # If we don't have a validation split, split off a percentage of train as validation.

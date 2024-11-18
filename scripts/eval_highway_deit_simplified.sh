@@ -5,6 +5,8 @@
 ##### Parameters
 path='/zhome/57/8/181461/thesis/lgvit/lgvit_repo'
 model_path="${path}/models/deit_highway"
+CHECKPOINT_PATH="/zhome/57/8/181461/thesis/lgvit/LGViT-ViT-Cifar100/pytorch_model.bin"
+# CHECKPOINT_PATH="/zhome/57/8/181461/thesis/lgvit/LGViT-ViT-Cifar100/config.json"
 
 export PYTHONPATH=$path:$PYTHONPATH         # Add path to the beginning of the search path
 export PYTHONPATH="$PYTHONPATH:$model_path" # Add the model path to the end of the search path
@@ -13,7 +15,7 @@ BACKBONE=DeiT # ViT, DeiT
 MODEL_TYPE=${BACKBONE}-base
 MODEL_NAME=facebook/deit-base-distilled-patch16-224
 
-DATASET=cifar100      # cifar100, Food101, Maysee/tiny-imagenet, imagenet-1k
+DATASET=uoft-cs/cifar100      # uoft-cs/cifar100, Food101, Maysee/tiny-imagenet, imagenet-1k
 if [ $DATASET = 'Maysee/tiny-imagenet' ]; then
   DATANAME=tiny-imagenet
 else
@@ -34,7 +36,7 @@ python "${path}/examples/run_highway_deit.py" \
     --run_name ${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_${PAPER_NAME} \
     --image_processor_name $MODEL_NAME \
     --config_name $MODEL_NAME \
-    --model_name_or_path /xxx/path/to/Early_Exit/checkpoint_path \
+    --model_name_or_path ${CHECKPOINT_PATH} \
     --dataset_name $DATASET \
     --output_dir ../outputs/$MODEL_TYPE/$DATASET/$PAPER_NAME/$EXIT_STRATEGY/ \
     --remove_unused_columns False \
