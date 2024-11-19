@@ -112,7 +112,8 @@ if TYPE_CHECKING:
             DeiTPreTrainedModel,
         )
         from modeling_highway_deit import (
-            DeiTHighway
+            DeiTHighway,
+            DeiTHighwayForImageClassification
         )
 
 else:

@@ -84,9 +84,9 @@ class DeiTEmbeddings(nn.Module):
             self.cls_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size))
             self.position_embeddings = nn.Parameter(torch.zeros(1, num_patches + 1, config.hidden_size))
                 
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size)) if use_mask_token else None
-        self.patch_embeddings = DeiTPatchEmbeddings(config)
-        num_patches = self.patch_embeddings.num_patches
+        # self.mask_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size)) if use_mask_token else None
+        # self.patch_embeddings = DeiTPatchEmbeddings(config)
+        # num_patches = self.patch_embeddings.num_patches
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, pixel_values: torch.Tensor, bool_masked_pos: Optional[torch.BoolTensor] = None) -> torch.Tensor:
@@ -119,7 +119,7 @@ class DeiTPatchEmbeddings(nn.Module):
     Transformer.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: DeiTConfig):
         super().__init__()
         image_size, patch_size = config.image_size, config.patch_size
         num_channels, hidden_size = config.num_channels, config.hidden_size

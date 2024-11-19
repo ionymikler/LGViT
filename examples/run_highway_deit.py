@@ -683,12 +683,12 @@ def main():
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu} " +\
         f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
     )
-    print("----")
-    logger.info(f"Training/evaluation parameters {training_args}")
+    # print("----")
+    # logger.info(f"Training/evaluation parameters {training_args}")
     print("----")
     logger.info(f"model parameters {model_args}")
-    print("----")
-    logger.info(f"data parameters {data_args}")
+    # print("----")
+    # logger.info(f"data parameters {data_args}")
 
     # Detecting last checkpoint.
     last_checkpoint = None
@@ -769,6 +769,7 @@ def main():
         """Computes accuracy on a batch of predictions"""
         return metric.compute(predictions=np.argmax(p.predictions, axis=1), references=p.label_ids)
 
+    logger.info("Loading model configuration")
     if training_args.do_train:
         config = DeiTConfig.from_pretrained(
             model_args.config_name or model_args.model_name_or_path,
@@ -818,6 +819,7 @@ def main():
     total_optimization_steps = int(len(dataset['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
     config.total_optimization_steps = total_optimization_steps
 
+    logger.info("Loading model")
     model = DeiTHighwayForImageClassification.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -828,6 +830,8 @@ def main():
         # use_auth_token=True if model_args.use_auth_token else None,
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
+
+    logger.info("Loading image processor")
 
     image_processor = DeiTImageProcessor.from_pretrained(
         model_args.image_processor_name or model_args.model_name_or_path,
@@ -871,6 +875,9 @@ def main():
         example_batch["pixel_values"] = [_val_transforms(pil_img.convert("RGB")) for pil_img in example_batch["image"]]
         return example_batch
 
+    logger.info(f"Running train: {training_args.do_train}")
+    logger.info(f"Running train: {training_args.do_eval}")
+    
     if training_args.do_train:
         if "train" not in dataset:
             raise ValueError("--do_train requires a train dataset")
@@ -891,9 +898,9 @@ def main():
         # Set the validation transforms
         dataset["validation"].set_transform(val_transforms)
 
+    ('do_eval:', training_args.do_eval)
     # Initalize our trainer
 
-    print('do_eval:', training_args.do_eval)
 
     trainer = TrainerwithExits(
         model=model,
@@ -905,6 +912,8 @@ def main():
         data_collator=collate_fn,
     )
 
+    logger.info("models loaded")
+    exit()
     # Training
     if training_args.do_train:
         checkpoint = None

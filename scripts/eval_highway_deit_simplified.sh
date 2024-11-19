@@ -5,7 +5,7 @@
 ##### Parameters
 path='/zhome/57/8/181461/thesis/lgvit/lgvit_repo'
 model_path="${path}/models/deit_highway"
-CHECKPOINT_PATH="/zhome/57/8/181461/thesis/lgvit/LGViT-ViT-Cifar100/pytorch_model.bin"
+CHECKPOINT_PATH="/zhome/57/8/181461/thesis/lgvit/LGViT-ViT-Cifar100"
 # CHECKPOINT_PATH="/zhome/57/8/181461/thesis/lgvit/LGViT-ViT-Cifar100/config.json"
 
 export PYTHONPATH=$path:$PYTHONPATH         # Add path to the beginning of the search path
@@ -48,3 +48,4 @@ python "${path}/examples/run_highway_deit.py" \
     --seed 777 \
     --report_to wandb \
     --use_auth_token False \
+    --ignore_mismatched_sizes True \

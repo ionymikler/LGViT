@@ -395,8 +395,8 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
         self.exit_strategy = config.exit_strategy
         self.train_strategy = config.train_strategy
         self.loss_coefficient = config.loss_coefficient
-        self.homo_loss_coefficient = config.homo_loss_coefficient
-        self.hete_loss_coefficient = config.hete_loss_coefficient
+        self.homo_loss_coefficient = config.homo_coefficient
+        self.hete_loss_coefficient = config.hete_coefficient
 
         self.stage = 0 # for alternating training
 
