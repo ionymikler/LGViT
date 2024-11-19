@@ -11,9 +11,11 @@ import torch.utils.checkpoint
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from transformers import PretrainedConfig
-from modeling_deit import DeiTEmbeddings, DeiTLayer, DeiTPreTrainedModel, DeiTPatchEmbeddings
-from configuration_deit import DeiTConfig
-from models.deit_highway.highway import ViTHighway, DeiTHighway, DeiTHighway_v2, ViT_EE_Highway
+
+# local
+from .modeling_deit import DeiTEmbeddings, DeiTLayer, DeiTPreTrainedModel, DeiTPatchEmbeddings
+from .configuration_deit import DeiTConfig
+from .highway import ViTHighway, DeiTHighway, DeiTHighway_v2, ViT_EE_Highway
 
 
 def CrossEntropy(outputs, targets, temperature):

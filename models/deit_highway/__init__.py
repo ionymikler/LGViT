@@ -81,8 +81,7 @@ else:
         "TFDeiTPreTrainedModel",
     ]
 
-
-from configuration_deit import DeiTConfig, DeiTOnnxConfig
+from .configuration_deit import DeiTConfig, DeiTOnnxConfig
 
 if TYPE_CHECKING:
     from configuration_deit import DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, DeiTConfig, DeiTOnnxConfig

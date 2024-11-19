@@ -654,7 +654,6 @@ class TrainerwithExits(Trainer):
 # See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
-    task_arg = datasets.ImageClassification(image_column='img', label_column='fine_label')
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # Single argument; json path
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
@@ -709,6 +708,7 @@ def main():
     set_seed(training_args.seed)
 
     # Initialize our dataset and prepare i  t for the 'image-classification' task.
+    task_arg = datasets.ImageClassification(image_column='img', label_column='fine_label')
     if data_args.dataset_name is not None:
         dataset = datasets.load_dataset(
             path=data_args.dataset_name,
@@ -913,7 +913,7 @@ def main():
     )
 
     logger.info("models loaded")
-    exit()
+    # exit()
     # Training
     if training_args.do_train:
         checkpoint = None

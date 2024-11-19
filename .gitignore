@@ -1,1 +1,5 @@
 *.pyc
+
+
+# Results by-products
+wandb/
