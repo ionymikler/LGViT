@@ -371,13 +371,14 @@ class DeiTModel(DeiTPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
+        
         sequence_output = encoder_outputs[0]
         sequence_output = self.layernorm(sequence_output)
-        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None #QUESTION: What is the pooler for? is it standard?
 
         head_outputs = (sequence_output, pooled_output) if pooled_output is not None else (sequence_output,)
 
-        # retrun sequence_output, pooled_output, (hidden_states), (attentions), highway exits
+        # return sequence_output, pooled_output, (hidden_states), (attentions), highway exits
         return head_outputs + encoder_outputs[1:]
 
 
@@ -422,8 +423,8 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
             pixel_values: Optional[torch.Tensor] = None,
             head_mask: Optional[torch.Tensor] = None,
             labels: Optional[torch.Tensor] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
+            return_attentions: Optional[bool] = None,
+            return_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
             output_layer=-1,
     ):
@@ -434,16 +435,16 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
         '''
         exit_layer = self.num_layers
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        return_hidden_states = (
+            return_hidden_states if return_hidden_states is not None else self.config.output_hidden_states
         )
         
         try:
             outputs = self.deit(
                 pixel_values,
                 head_mask=head_mask,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
+                output_attentions=return_attentions,
+                output_hidden_states=return_hidden_states,
                 return_dict=return_dict, )
             #  last_hidden_state(sequence_output), pooler_output, (hidden_states), (attentions), highway_exits
 
@@ -577,7 +578,7 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
                     loss_all = (1 - distill_coef) * (sum(highway_losses) + loss) / (
                                 len(highway_losses) + 1) + distill_coef * sum(
                         distillation_losses) / len(distillation_losses)
-                    if output_hidden_states:
+                    if return_hidden_states:
                         loss_all += sum(feature_losses) / len(feature_losses)
                     outputs = (loss_all,) + outputs
                 else:
@@ -592,7 +593,8 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
             if output_layer >= 0:
                 position = self.deit.encoder.position_exits[output_layer - 1]
                 outputs = (outputs[0],) + (highway_logits_all[position],) + outputs[2:-1] + (output_layer,) ## use the highway of the last layer
-
+        
+        return logits
         return outputs
 
 
