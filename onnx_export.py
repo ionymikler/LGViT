@@ -1,3 +1,4 @@
+import logging
 import torch
 import datasets
 from transformers import (
@@ -23,17 +24,26 @@ from examples.lgvit_utils import (
 
 from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 
+logger = logging.getLogger(__name__)
+
+# Taken from the bash running scripts
+BACKBONE = "ViT" # ViT, DeiT
+EXIT_STRATEGY="confidence" # entropy, confidence, patience, patient_and_confident
+HIGHWAY_TYPE="LGViT" # linear, LGViT, vit, self_attention, conv_normal
+PAPER_NAME="LGViT"  # base, SDN, PABEE, PCEE, BERxiT, ViT-EE, LGViT
+TRAIN_STRATEGY="no_train" # no_train, normal, weighted, alternating, distillation, alternating_weighted
+
 
 parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
 args = [
-"--run_name" ,"DeiT_confidence_LGViT__LGViT",
+"--run_name" ,f"${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_${PAPER_NAME}",
 "--image_processor_name" ,"facebook/deit-base-distilled-patch16-224",
 "--config_name" ,"facebook/deit-base-distilled-patch16-224",
 "--model_name_or_path" ,"/home/iony/DTU/f24/thesis/code/lgvit/LGViT-ViT-Cifar100",
 "--dataset_name" ,"uoft-cs/cifar100",
 "--output_dir" ,"../outputs/DeiT-base/uoft-cs/cifar100/LGViT/confidence/",
 "--remove_unused_columns" ,"False",
-"--backbone" ,"DeiT",
+"--backbone" ,"ViT", # ViT, DeiT
 "--exit_strategy" ,"confidence",
 "--do_train" ,"False",
 "--do_eval", "True",
@@ -41,7 +51,7 @@ args = [
 "--seed" ,"777",
 "--report_to" ,"wandb",
 "--use_auth_token" ,"False",
-"--ignore_mismatched_sizes" ,"True",
+"--ignore_mismatched_sizes" ,"False",
 ]
 model_args, data_args, training_args = parser.parse_args_into_dataclasses(args)
 
@@ -51,8 +61,9 @@ dataset_dict = datasets.load_dataset(
     path=data_args.dataset_name,
     name=data_args.dataset_config_name,
     cache_dir=model_args.cache_dir,
-    task=task_arg,
-    use_auth_token=True if model_args.use_auth_token else None,
+    task=task_arg, #Deprecated in 2.13.0
+    token=True if model_args.use_auth_token else None,
+    # use_auth_token=True if model_args.use_auth_token else None,
     # ignore_verifications=True,
 )
 

@@ -12,9 +12,11 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from transformers import PretrainedConfig
 
+from logging import getLogger
+
 # local
 from .modeling_deit import DeiTEmbeddings, DeiTLayer, DeiTPreTrainedModel, DeiTPatchEmbeddings
-from .configuration_deit import DeiTConfig
+from .configuration_deit import DeiTConfig, configure_logger
 from .highway import ViTHighway, DeiTHighway, DeiTHighway_v2, ViT_EE_Highway
 
 
@@ -28,12 +30,10 @@ def entropy(x):
     x = torch.softmax(x, dim=-1)  # softmax normalized prob distribution
     return -torch.sum(x * torch.log(x), dim=-1)  # entropy calculation on probs: -\sum(p \ln(p))
 
-
 def confidence(x):
     # x: torch.Tensor, logits BEFORE softmax
     softmax = torch.softmax(x, dim=-1)
     return torch.max(softmax)
-
 
 def prediction(x):
     # x: torch.Tensor, logits BEFORE softmax
@@ -43,25 +43,30 @@ def prediction(x):
 class DeiTEncoder(nn.Module):
     def __init__(self, config: DeiTConfig):
         super(DeiTEncoder, self).__init__()
+        self.logger = configure_logger(getLogger(self.name))
+
         self.config = config
         self.layer = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
         self.num_early_exits = config.num_early_exits
         
-        print(f'backbone:{config.backbone}')
-        print(f'exit_type:{config.highway_type}')
+        self.logger.info(f'backbone:{config.backbone}')
+        self.logger.info(f'exit_type:{config.highway_type}')
         self.init_highway()
 
         self.exit_strategy = config.exit_strategy
         self.train_strategy = config.train_strategy
         
         self.use_lte = True if self.exit_strategy == 'gumbel_lte' else False
-        print(f'use_lte:{self.use_lte}')
+        self.logger.info(f'use_lte:{self.use_lte}')
         
         self.set_early_exit_threshold(self.config.threshold)
         self.set_early_exit_position()
-
+    
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     def init_highway(self):
         config = self.config
@@ -125,7 +130,7 @@ class DeiTEncoder(nn.Module):
                 self.position_exits = position_exits
         # self.position_exits = [i for i in range(self.num_early_exits)]
 
-        print('The exits are in position:', position_exits)
+        self.logger.info(f'The exits are in position: {position_exits}')
         self.position_exits = {int(position) - 1: index for index, position in enumerate(self.position_exits)}
 
         # self.position_exits = {int((num_hidden_layers/self.num_early_exits)*(i+1))-1:i for i in range(self.num_early_exits)}
@@ -596,7 +601,6 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
         
         return logits
         return outputs
-
 
 class DeiTHighwayForImageClassification_distillation(DeiTPreTrainedModel):
     def __init__(self, config: DeiTConfig, train_highway=False):

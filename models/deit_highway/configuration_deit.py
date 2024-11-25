@@ -14,6 +14,7 @@
 # limitations under the License.
 """ DeiT model configuration"""
 
+import logging
 from collections import OrderedDict
 from typing import Mapping
 
@@ -21,10 +22,19 @@ from packaging import version
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.onnx import OnnxConfig
-from transformers.utils import logging
 
 
-logger = logging.get_logger(__name__)
+def configure_logger(logger: logging.Logger) -> logging.Logger:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] %(message)s')
+    formatter.default_time_format = '%H:%M:%S'
+    formatter.default_msec_format = '%s.%03d'
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    return logger
+
 
 DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "facebook/deit-base-distilled-patch16-224": (

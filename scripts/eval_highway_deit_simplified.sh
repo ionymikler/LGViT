@@ -23,13 +23,14 @@ done
 ##### Parameters
 BASE_PATH='/home/iony/DTU/f24/thesis/code/lgvit/lgvit_repo'
 CHECKPOINT_PATH="/home/iony/DTU/f24/thesis/code/lgvit/LGViT-ViT-Cifar100"
+IGNORE_MISMATCHED_SIZES=False
 
 model_path="${BASE_PATH}/models/deit_highway"
 
 export PYTHONPATH=$BASE_PATH:$PYTHONPATH # Add path to the beginning of the search path
 export PYTHONPATH="$PYTHONPATH:$model_path" # Add the model path to the end of the search path
 
-BACKBONE=DeiT # ViT, DeiT
+BACKBONE=ViT # ViT, DeiT
 MODEL_TYPE=${BACKBONE}-base
 MODEL_NAME=facebook/deit-base-distilled-patch16-224
 
@@ -46,6 +47,8 @@ PAPER_NAME=LGViT  # base, SDN, PABEE, PCEE, BERxiT, ViT-EE, LGViT
 
 # export CUDA_VISIBLE_DEVICES=0,1,2
 export CUDA_VISIBLE_DEVICES=0
+report_to='none' # none, wandb
+
 #export WANDB_PROJECT=${BACKBONE}_${DATANAME}_eval
 
 ##### Program run
@@ -60,12 +63,12 @@ args="--run_name ${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_
     --backbone $BACKBONE \
     --exit_strategy $EXIT_STRATEGY \
     --do_train False \
-    --do_eval \
+    --do_eval True\
     --per_device_eval_batch_size 1 \
     --seed 777 \
-    --report_to wandb \
+    --report_to $report_to \
     --use_auth_token False \
-    --ignore_mismatched_sizes True \
+    --ignore_mismatched_sizes $IGNORE_MISMATCHED_SIZES \
     "
 
 if [ "$VERBOSE" = true ]; then
