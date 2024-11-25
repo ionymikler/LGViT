@@ -23,7 +23,6 @@ import evaluate
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader, Dataset
 import datasets
 from PIL import Image
@@ -36,8 +35,6 @@ from torchvision.transforms import (
     Resize,
     ToTensor,
 )
-
-from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 
 import transformers
 from transformers import (
@@ -71,9 +68,7 @@ from transformers.trainer_pt_utils import (
 )
 
 import transformers.utils as trans_utils
-from transformers.utils import (
-    is_sagemaker_mp_enabled,
-)
+
 from transformers.data.data_collator import DataCollator
 from transformers.integrations import WandbCallback, rewrite_logs, is_wandb_available
 from transformers.modeling_utils import PreTrainedModel
@@ -95,192 +90,25 @@ if trans_utils.is_sagemaker_mp_enabled():
 else:
     IS_SAGEMAKER_MP_POST_1_10 = False
 
-""" Fine-tuning a 🤗 Transformers model for image classification"""
+# Local/Own
+from lgvit_utils import DataTrainingArguments, ModelArguments, print_args
+from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 
-logger = logging.getLogger(__name__)
+from models.deit_highway.configuration_deit import configure_logger
+
+""" Fine-tuning a 🤗 Transformers model for image classification"""
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.27.0.dev0")
 
 require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/image-classification/requirements.txt")
 
-MODEL_CONFIG_CLASSES = list(MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-
+logger = configure_logger(logging.getLogger("main"))
 
 def pil_loader(path: str):
     with open(path, "rb") as f:
         im = Image.open(f)
         return im.convert("RGB")
-
-
-@dataclass
-class DataTrainingArguments:
-    """
-    Arguments pertaining to what data we are going to input our model for training and eval.
-    Using `HfArgumentParser` we can turn this class into argparse arguments to be able to specify
-    them on the command line.
-    """
-
-    dataset_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Name of a dataset from the hub (could be your own, possibly private dataset hosted on the hub)."
-        },
-    )
-    dataset_config_name: Optional[str] = field(
-        default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
-    )
-    train_dir: Optional[str] = field(default=None, metadata={"help": "A folder containing the training data."})
-    validation_dir: Optional[str] = field(default=None, metadata={"help": "A folder containing the validation data."})
-    train_val_split: Optional[float] = field(
-        default=0.15, metadata={"help": "Percent to split off of train for validation."}
-    )
-    max_train_samples: Optional[int] = field(
-        default=None,
-        metadata={
-            "help": (
-                "For debugging purposes or quicker training, truncate the number of training examples to this "
-                "value if set."
-            )
-        },
-    )
-    max_eval_samples: Optional[int] = field(
-        default=None,
-        metadata={
-            "help": (
-                "For debugging purposes or quicker training, truncate the number of evaluation examples to this "
-                "value if set."
-            )
-        },
-    )
-
-    def __post_init__(self):
-        if self.dataset_name is None and (self.train_dir is None and self.validation_dir is None):
-            raise ValueError(
-                "You must specify either a dataset name from the hub or a train and/or validation directory."
-            )
-
-
-@dataclass
-class ModelArguments:
-    """
-    Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
-    """
-    
-    backbone: str = field(
-        default='ViT',
-        metadata={
-            "help": "choose one backbone: ViT, DeiT"
-        }
-    )
-    
-    train_highway: bool = field(
-        default=True,
-        metadata={
-            "help": "train highway"
-        }
-    )
-
-    threshold: float = field(
-        default=0.8,
-        metadata={
-            "help": "threshold"
-        }
-    ) 
-    
-    exit_strategy: str = field(
-        default='entropy',
-        metadata={
-            "help": "choose one exit_strategy: entropy, confidence, patience"
-        }
-    )
-
-    train_strategy: str = field(
-        default='normal',
-        metadata={
-            "help": "choose one train_strategy: normal, weighted, alternating"
-        }
-    )
-
-    num_early_exits: int = field(
-        default=4,
-        metadata={
-            "help": "number of exits"
-        }
-    )
-
-    position_exits: Optional[str] = field(
-        default=None,
-        metadata={"help": "The position of the exits"}
-    )
-
-    highway_type: Optional[str] = field(
-        default='linear',
-        metadata={
-            "help": "choose one highway_type: linear, conv1_1, conv1_2, conv1_3, conv2_1, attention"
-        }
-    )
-
-    loss_coefficient: float = field(
-        default=0.3,
-        metadata={
-            "help": "the coefficient of the prediction distillation loss"
-        }
-    )
-
-    homo_loss_coefficient: float = field(
-        default=0.01,
-        metadata={
-            "help": "the coefficient of the homogeneous distillation loss"
-        }
-    )
-    
-    hete_loss_coefficient: float = field(
-        default=0.01,
-        metadata={
-            "help": "the coefficient of the heterogeneous distillation loss"
-        }
-    )
-    
-    output_hidden_states: bool = field(
-        default=False,
-        metadata={"help": "whether output_hidden_states and use feature distillation" }
-    )
-    
-    
-    model_name_or_path: str = field(
-        default="facebook/deit-base-distilled-patch16-224",
-        metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
-    )
-    model_type: Optional[str] = field(
-        default=None,
-        metadata={"help": "If training from scratch, pass a model type from the list: " + ", ".join(MODEL_TYPES)},
-    )
-    config_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
-    )
-    cache_dir: Optional[str] = field(
-        default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
-    )
-    model_revision: str = field(
-        default="main",
-        metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
-    )
-    image_processor_name: str = field(default=None, metadata={"help": "Name or path of preprocessor config."})
-    use_auth_token: bool = field(
-        default=True,
-        metadata={
-            "help": (
-                "Will use the token generated when running `huggingface-cli login` (necessary to use this script "
-                "with private models)."
-            )
-        },
-    )
-    ignore_mismatched_sizes: bool = field(
-        default=False,
-        metadata={"help": "Will enable to load a pretrained model whose head dimensions are different."},
-    )
 
 
 def collate_fn(examples):
@@ -650,75 +478,58 @@ class TrainerwithExits(Trainer):
 
         return (loss, logits, labels, exit_layer)
 
+def hf_transformers_setup(**kwargs):
+    """
+    Setup for Huggingface Transformers library
+    """
+    transformers.utils.logging.set_verbosity(kwargs["verbosity"])
+    transformers.utils.logging.enable_default_handler()
+    transformers.utils.logging.enable_explicit_format()
 
-# See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
-def main():
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+def get_parsed_args(parser):
+    """
+    Parse arguments using the provided parser
+    """
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # Single argument; json path
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    return model_args, data_args, training_args
 
-    trans_utils.send_example_telemetry("run_image_classification_highway", model_args, data_args)
+def retrieve_last_checkpoint(output_dir:str, overwrite_output_dir:bool, resume_from_checkpoint:str):
+    if os.path.isdir(output_dir) and not overwrite_output_dir:
+        last_checkpoint = get_last_checkpoint(output_dir)
 
-    # Setup logging
-    logging.basicConfig(
-        format="%(levelname)s-%(name)s-%(asctime)s: %(message)s",
-        datefmt="%H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
-
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
-    logger.name = "main"
-    transformers.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.enable_default_handler()
-    transformers.utils.logging.enable_explicit_format()
-
-    # Log on each process the small summary:
-    logger.warning(
-        f"Process Summary:" + \
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu} " +\
-        f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
-    )
-    # print("----")
-    # logger.info(f"Training/evaluation parameters {training_args}")
-    print("----")
-    logger.info(f"model parameters {model_args}")
-    # print("----")
-    # logger.info(f"data parameters {data_args}")
-
-    # Detecting last checkpoint.
-    last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
-        last_checkpoint = get_last_checkpoint(training_args.output_dir)
-        if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
+        if last_checkpoint is None and len(os.listdir(output_dir)) > 0:
             raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty. "
+                f"Output directory ({output_dir}) already exists and is not empty. "
                 "Use --overwrite_output_dir to overcome."
             )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
+        
+        if resume_from_checkpoint is None:
             logger.info(
                 f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
+        return last_checkpoint
 
-    # Set seed before initializing model.
-    set_seed(training_args.seed)
-
-    # Initialize our dataset and prepare i  t for the 'image-classification' task.
+# Dataset fns
+def get_dataset(data_args, model_args):
     task_arg = datasets.ImageClassification(image_column='img', label_column='fine_label')
     if data_args.dataset_name is not None:
+        logger.info(f"Loading dataset '{data_args.dataset_name}' with config '{data_args.dataset_config_name}'")
         dataset = datasets.load_dataset(
             path=data_args.dataset_name,
             name=data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
             task=task_arg,
-            use_auth_token=True if model_args.use_auth_token else None,
+            token=True if model_args.use_auth_token else None,
+            # use_auth_token=True if model_args.use_auth_token else None,
             # ignore_verifications=True,
         )
     else:
+        logger.info(f"Loading dataset from directories. Train '{data_args.train_dir}', Validation '{data_args.validation_dir}'")
         data_files = {}
         if data_args.train_dir is not None:
             data_files["train"] = os.path.join(data_args.train_dir, "**")
@@ -731,7 +542,7 @@ def main():
             cache_dir=model_args.cache_dir,
             task=task_arg,
         )
-
+    
     # If we don't have a validation split, split off a percentage of train as validation.
     # data_args.train_val_split = None if "validation" in dataset.keys() else data_args.train_val_split
     
@@ -751,88 +562,18 @@ def main():
         split = dataset["train"].train_test_split(data_args.train_val_split)
         dataset["train"] = split["train"]
         dataset["validation"] = split["test"]
-    
-    # Prepare label mappings.
-    # We'll include these in the model's config to get human readable labels in the Inference API.
-    labels = dataset["train"].features["labels"].names
+
+    return dataset
+
+def get_label_mappings(labels):
     label2id, id2label = dict(), dict()
     for i, label in enumerate(labels):
         label2id[label] = str(i)
         id2label[str(i)] = label
+    return label2id, id2label
 
-    # Load the accuracy metric from the datasets package
-    metric = evaluate.load("accuracy")
-
-    # Define our compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
-    # predictions and label_ids field) and has to return a dictionary string to float.
-    def compute_metrics(p):
-        """Computes accuracy on a batch of predictions"""
-        return metric.compute(predictions=np.argmax(p.predictions, axis=1), references=p.label_ids)
-
-    logger.info("Loading model configuration")
-    if training_args.do_train:
-        config = DeiTConfig.from_pretrained(
-            model_args.config_name or model_args.model_name_or_path,
-            num_labels=len(labels),
-            label2id=label2id,
-            id2label=id2label,
-            finetuning_task="image-classification",
-            cache_dir=model_args.cache_dir,
-            revision=model_args.model_revision,
-            backbone=model_args.backbone,
-            threshold=model_args.threshold,
-            exit_strategy=model_args.exit_strategy,
-            train_strategy=model_args.train_strategy,
-            num_early_exits=model_args.num_early_exits,
-            position_exits=model_args.position_exits,
-            highway_type=model_args.highway_type,
-            loss_coefficient=model_args.loss_coefficient,
-            homo_loss_coefficient=model_args.homo_loss_coefficient,
-            hete_loss_coefficient=model_args.hete_loss_coefficient,
-            output_hidden_states=model_args.output_hidden_states,
-            # use_auth_token=True if model_args.use_auth_token else None,
-        )
-    else:
-        config = DeiTConfig.from_pretrained(
-            model_args.model_name_or_path,
-            num_labels=len(labels),
-            label2id=label2id,
-            id2label=id2label,
-            finetuning_task="image-classification",
-            cache_dir=model_args.cache_dir,
-            revision=model_args.model_revision,
-            backbone=model_args.backbone,
-            threshold=model_args.threshold,
-            exit_strategy=model_args.exit_strategy,
-            # train_strategy=model_args.train_strategy,
-            # num_early_exits=model_args.num_early_exits,
-            # position_exits=model_args.position_exits,
-            # highway_type=model_args.highway_type,
-            # loss_coefficient=model_args.loss_coefficient,
-            # homo_loss_coefficient=model_args.homo_loss_coefficient,
-            # hete_loss_coefficient=model_args.hete_loss_coefficient,
-            # feature_loss_coefficient=model_args.feature_loss_coefficient,
-            # output_hidden_states=model_args.output_hidden_states,
-            # use_auth_token=True if model_args.use_auth_token else None,
-        )
-
-    total_optimization_steps = int(len(dataset['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
-    config.total_optimization_steps = total_optimization_steps
-
-    logger.info("Loading model")
-    model = DeiTHighwayForImageClassification.from_pretrained(
-        model_args.model_name_or_path,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
-        config=config,
-        train_highway=True,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        # use_auth_token=True if model_args.use_auth_token else None,
-        ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
-    )
-
-    logger.info("Loading image processor")
-
+# image processor fns
+def get_image_processor(model_args):
     image_processor = DeiTImageProcessor.from_pretrained(
         model_args.image_processor_name or model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -841,10 +582,17 @@ def main():
 
     # Define torchvision transforms to be applied to each image.
     image_processor.size['shortest_edge'] = 224
+    
+    return image_processor
+
+def add_transforms(dataset:datasets.DatasetDict, image_processor:DeiTImageProcessor, training_args, data_args):
     if "shortest_edge" in image_processor.size:
         size = image_processor.size["shortest_edge"]
     else:
+        logger.warning("No 'shortest_edge' found in image_processor.size. Using 'height' and 'width' instead.")
         size = (image_processor.size["height"], image_processor.size["width"])
+    
+    # transforms
     normalize = Normalize(mean=image_processor.image_mean, std=image_processor.image_std)
     _train_transforms = Compose(
         [
@@ -854,6 +602,7 @@ def main():
             normalize,
         ]
     )
+    
     _val_transforms = Compose(
         [
             Resize(size),
@@ -874,9 +623,6 @@ def main():
         """Apply _val_transforms across a batch."""
         example_batch["pixel_values"] = [_val_transforms(pil_img.convert("RGB")) for pil_img in example_batch["image"]]
         return example_batch
-
-    logger.info(f"Running train: {training_args.do_train}")
-    logger.info(f"Running train: {training_args.do_eval}")
     
     if training_args.do_train:
         if "train" not in dataset:
@@ -898,9 +644,138 @@ def main():
         # Set the validation transforms
         dataset["validation"].set_transform(val_transforms)
 
-    ('do_eval:', training_args.do_eval)
-    # Initalize our trainer
+    return dataset
 
+# Model fns
+def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, tot_optim_steps:int):
+       
+    if do_train:
+        config = DeiTConfig.from_pretrained(
+            model_args.config_name or model_args.model_name_or_path,
+            num_labels=len(label2id.keys()),
+            label2id=label2id,
+            id2label=id2label,
+            finetuning_task="image-classification",
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            backbone=model_args.backbone,
+            threshold=model_args.threshold,
+            exit_strategy=model_args.exit_strategy,
+            train_strategy=model_args.train_strategy,
+            num_early_exits=model_args.num_early_exits,
+            position_exits=model_args.position_exits,
+            highway_type=model_args.highway_type,
+            loss_coefficient=model_args.loss_coefficient,
+            homo_loss_coefficient=model_args.homo_loss_coefficient,
+            hete_loss_coefficient=model_args.hete_loss_coefficient,
+            output_hidden_states=model_args.output_hidden_states,
+            # use_auth_token=True if model_args.use_auth_token else None,
+        )
+    else:
+        config = DeiTConfig.from_pretrained(
+            model_args.model_name_or_path,
+            num_labels=len(label2id.keys()),
+            label2id=label2id,
+            id2label=id2label,
+            finetuning_task="image-classification",
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            backbone=model_args.backbone,
+            threshold=model_args.threshold,
+            exit_strategy=model_args.exit_strategy,
+            # train_strategy=model_args.train_strategy,
+            # num_early_exits=model_args.num_early_exits,
+            # position_exits=model_args.position_exits,
+            # highway_type=model_args.highway_type,
+            # loss_coefficient=model_args.loss_coefficient,
+            # homo_loss_coefficient=model_args.homo_loss_coefficient,
+            # hete_loss_coefficient=model_args.hete_loss_coefficient,
+            # feature_loss_coefficient=model_args.feature_loss_coefficient,
+            # output_hidden_states=model_args.output_hidden_states,
+            # use_auth_token=True if model_args.use_auth_token else None,
+        )
+
+    config.total_optimization_steps = tot_optim_steps
+
+    return config
+
+
+# See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
+def main():
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+
+    model_args, data_args, training_args = get_parsed_args(parser)
+
+    logger.info(f"model_args")
+    print_args([model_args])
+
+    hf_transformers_setup(verbosity=training_args.get_process_log_level())
+
+    # Log on each process the small summary:
+    logger.debug(
+        f"Process Summary:" + \
+        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu} " +\
+        f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
+    )
+
+
+    # Detecting last checkpoint.
+    last_checkpoint = None
+    if training_args.do_train:
+        last_checkpoint = retrieve_last_checkpoint(training_args.output_dir, training_args.overwrite_output_dir)
+
+    # Set seed before initializing model.
+    set_seed(training_args.seed)
+
+    logger.info("Initializing dataset")
+    dataset = get_dataset(data_args, model_args)    
+    
+    # Prepare label mappings.
+    # We'll include these in the model's config to get human readable labels in the Inference API.
+    label2id, id2label = get_label_mappings(dataset["train"].features["labels"].names)
+    
+    logger.info("Loading image processor")
+    image_processor = get_image_processor(model_args)
+    
+    logger.info("Adding transforms to dataset")
+    dataset = add_transforms(dataset, image_processor, training_args, data_args)
+
+    logger.info("Dataset initialized")
+
+    logger.info(f"Loading 'DeiTConfig' with '{model_args.backbone}' backbone")
+    total_optimization_steps = int(len(dataset['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
+    config = get_model_config(model_args, label2id, id2label, training_args.do_train, total_optimization_steps)
+    logger.info(f"Model config loaded")
+
+    logger.info(f"Loading 'DeiTHighwayForImageClassification' model with {model_args.backbone} backbone")
+    model = DeiTHighwayForImageClassification.from_pretrained(
+        model_args.model_name_or_path,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        config=config,
+        train_highway=True,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        # use_auth_token=True if model_args.use_auth_token else None,
+        ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
+    )
+
+
+    ###### Trainer ######
+    actions = []
+    if training_args.do_train:
+        actions.append("train")
+    if training_args.do_eval:
+        actions.append("eval") 
+    logger.info(f"Initializing 'Trainer' for {actions}") 
+
+    # Load the accuracy metric from the datasets package
+    metric = evaluate.load("accuracy")
+
+    def compute_metrics(p):
+        # Define our compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
+        # predictions and label_ids field) and has to return a dictionary string to float.
+        """Computes accuracy on a batch of predictions"""
+        return metric.compute(predictions=np.argmax(p.predictions, axis=1), references=p.label_ids)
 
     trainer = TrainerwithExits(
         model=model,
@@ -912,8 +787,6 @@ def main():
         data_collator=collate_fn,
     )
 
-    logger.info("models loaded")
-    # exit()
     # Training
     if training_args.do_train:
         checkpoint = None

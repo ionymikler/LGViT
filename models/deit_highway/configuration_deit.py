@@ -23,18 +23,21 @@ from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.onnx import OnnxConfig
 
-
-def configure_logger(logger: logging.Logger) -> logging.Logger:
+def configure_logger(logger: logging.Logger,log_level=logging.DEBUG, log_filepath=None) -> logging.Logger:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] %(message)s')
+    formatter = logging.Formatter('[%(levelname)s][%(name)s][%(asctime)s]: %(message)s')
     formatter.default_time_format = '%H:%M:%S'
     formatter.default_msec_format = '%s.%03d'
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(log_level)
+
+    # if log_filepath:
+    #     file_handler = logging.FileHandler(log_filepath)
+    #     file_handler.setFormatter(formatter)
+    #     logger.addHandler(file_handler)
 
     return logger
-
 
 DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "facebook/deit-base-distilled-patch16-224": (
