@@ -27,14 +27,19 @@ class DataTrainingArguments:
             "help": "Name of a dataset from the hub (could be your own, possibly private dataset hosted on the hub)."
         },
     )
+    
     dataset_config_name: Optional[str] = field(
         default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
     )
+    
     train_dir: Optional[str] = field(default=None, metadata={"help": "A folder containing the training data."})
+    
     validation_dir: Optional[str] = field(default=None, metadata={"help": "A folder containing the validation data."})
+    
     train_val_split: Optional[float] = field(
         default=0.15, metadata={"help": "Percent to split off of train for validation."}
     )
+    
     max_train_samples: Optional[int] = field(
         default=None,
         metadata={
@@ -44,6 +49,7 @@ class DataTrainingArguments:
             )
         },
     )
+    
     max_eval_samples: Optional[int] = field(
         default=None,
         metadata={
@@ -146,27 +152,32 @@ class ModelArguments:
         default=False,
         metadata={"help": "whether output_hidden_states and use feature distillation" }
     )
-    
-    
+        
     model_name_or_path: str = field(
         default="facebook/deit-base-distilled-patch16-224",
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
     )
+    
     model_type: Optional[str] = field(
         default=None,
         metadata={"help": "If training from scratch, pass a model type from the list: " + ", ".join(MODEL_TYPES)},
     )
+    
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
+    
     cache_dir: Optional[str] = field(
         default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
     )
+    
     model_revision: str = field(
         default="main",
         metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
+    
     image_processor_name: str = field(default=None, metadata={"help": "Name or path of preprocessor config."})
+    
     use_auth_token: bool = field(
         default=True,
         metadata={
@@ -176,6 +187,7 @@ class ModelArguments:
             )
         },
     )
+    
     ignore_mismatched_sizes: bool = field(
         default=False,
         metadata={"help": "Will enable to load a pretrained model whose head dimensions are different."},

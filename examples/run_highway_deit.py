@@ -574,6 +574,8 @@ def get_label_mappings(labels):
 
 # image processor fns
 def get_image_processor(model_args):
+    logger.info("Loading image processor")
+    
     image_processor = DeiTImageProcessor.from_pretrained(
         model_args.image_processor_name or model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -586,6 +588,8 @@ def get_image_processor(model_args):
     return image_processor
 
 def add_transforms(dataset:datasets.DatasetDict, image_processor:DeiTImageProcessor, training_args, data_args):
+    logger.info("Adding transforms to dataset")
+    
     if "shortest_edge" in image_processor.size:
         size = image_processor.size["shortest_edge"]
     else:
@@ -647,8 +651,9 @@ def add_transforms(dataset:datasets.DatasetDict, image_processor:DeiTImageProces
     return dataset
 
 # Model fns
-def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, tot_optim_steps:int):
-       
+def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, tot_optim_steps:int, save_config:bool=False):
+    logger.info(f"Loading 'DeiTConfig' with '{model_args.backbone}' backbone")
+
     if do_train:
         config = DeiTConfig.from_pretrained(
             model_args.config_name or model_args.model_name_or_path,
@@ -694,9 +699,14 @@ def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, to
             # output_hidden_states=model_args.output_hidden_states,
             # use_auth_token=True if model_args.use_auth_token else None,
         )
+    
+    if save_config:
+        config.save_pretrained("./config_pretrained.json")
+        logger.info("config saved")
 
     config.total_optimization_steps = tot_optim_steps
 
+    logger.info(f"Model config loaded")
     return config
 
 
@@ -706,8 +716,8 @@ def main():
 
     model_args, data_args, training_args = get_parsed_args(parser)
 
-    logger.info(f"model_args")
-    print_args([model_args])
+    # logger.info(f"model_args")
+    # print_args([model_args])
 
     hf_transformers_setup(verbosity=training_args.get_process_log_level())
 
@@ -728,24 +738,20 @@ def main():
     set_seed(training_args.seed)
 
     logger.info("Initializing dataset")
-    dataset = get_dataset(data_args, model_args)    
+    dataset = get_dataset(data_args, model_args)
     
     # Prepare label mappings.
     # We'll include these in the model's config to get human readable labels in the Inference API.
     label2id, id2label = get_label_mappings(dataset["train"].features["labels"].names)
     
-    logger.info("Loading image processor")
     image_processor = get_image_processor(model_args)
     
-    logger.info("Adding transforms to dataset")
     dataset = add_transforms(dataset, image_processor, training_args, data_args)
 
     logger.info("Dataset initialized")
 
-    logger.info(f"Loading 'DeiTConfig' with '{model_args.backbone}' backbone")
     total_optimization_steps = int(len(dataset['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
     config = get_model_config(model_args, label2id, id2label, training_args.do_train, total_optimization_steps)
-    logger.info(f"Model config loaded")
 
     logger.info(f"Loading 'DeiTHighwayForImageClassification' model with {model_args.backbone} backbone")
     model = DeiTHighwayForImageClassification.from_pretrained(

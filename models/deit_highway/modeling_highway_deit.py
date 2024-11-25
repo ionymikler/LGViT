@@ -396,10 +396,10 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
     def __init__(self, config: DeiTConfig, train_highway=True):
         super(DeiTHighwayForImageClassification, self).__init__(config)
 
-        self.config = config
+        self.config: DeiTConfig = config
         self.num_labels = config.num_labels
         self.num_layers = config.num_hidden_layers
-        self.train_highway = train_highway
+        self.train_highway:bool = train_highway
         self.exit_strategy = config.exit_strategy
         self.train_strategy = config.train_strategy
         self.loss_coefficient = config.loss_coefficient
@@ -443,7 +443,6 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
         return_hidden_states = (
             return_hidden_states if return_hidden_states is not None else self.config.output_hidden_states
         )
-        
         try:
             outputs = self.deit(
                 pixel_values,
@@ -599,7 +598,6 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
                 position = self.deit.encoder.position_exits[output_layer - 1]
                 outputs = (outputs[0],) + (highway_logits_all[position],) + outputs[2:-1] + (output_layer,) ## use the highway of the last layer
         
-        return logits
         return outputs
 
 class DeiTHighwayForImageClassification_distillation(DeiTPreTrainedModel):
