@@ -130,6 +130,9 @@ config = DeiTConfig.from_pretrained(
     # use_auth_token=True if model_args.use_auth_token else None,
 )
 
+config.save_pretrained("./config_pretrained.json")
+logger.info("config saved")
+
 total_optimization_steps = int(len(dataset_dict['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
 config.total_optimization_steps = total_optimization_steps
 
@@ -143,16 +146,15 @@ model = DeiTHighwayForImageClassification.from_pretrained(
     # use_auth_token=True if model_args.use_auth_token else None,
     ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
 )
-
+print('model loaded')
+model.deit.encoder
 
 
 X = dataset_dict["train"][0]["pixel_values"]
 X = torch.unsqueeze(X, 0) # make X into batch shape
 y = model(X)
 
-print(X.shape)
-print(y[0].shape)
-
-torch.onnx.export(model=model,args=X, f="model.onnx", input_names=["image_batch"], output_names=["labels_pred"])
+model_name = "lgvit_vit"
+torch.onnx.export(model=model,args=X, f=f"./models/onnx/{model_name}.onnx", input_names=["image_batch"], output_names=["labels_pred"])
 
 print("Model exported to model.onnx")

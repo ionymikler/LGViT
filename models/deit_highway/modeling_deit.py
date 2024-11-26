@@ -364,6 +364,7 @@ class DeiTEncoder(nn.Module):
         output_hidden_states: bool = False,
         return_dict: bool = True,
     ) -> Union[tuple, BaseModelOutput]:
+        
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
 

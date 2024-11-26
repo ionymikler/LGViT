@@ -1,5 +1,6 @@
+# by-products
 *.pyc
+*.onnx*
 
 
-# Results by-products
 wandb/

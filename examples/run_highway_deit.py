@@ -625,7 +625,9 @@ def add_transforms(dataset:datasets.DatasetDict, image_processor:DeiTImageProces
 
     def val_transforms(example_batch):
         """Apply _val_transforms across a batch."""
-        example_batch["pixel_values"] = [_val_transforms(pil_img.convert("RGB")) for pil_img in example_batch["image"]]
+        example_batch["pixel_values"] = [
+            _val_transforms(pil_img.convert("RGB")) for pil_img in example_batch["image"]
+        ]
         return example_batch
     
     if training_args.do_train:
@@ -738,19 +740,19 @@ def main():
     set_seed(training_args.seed)
 
     logger.info("Initializing dataset")
-    dataset = get_dataset(data_args, model_args)
+    dataset_dict = get_dataset(data_args, model_args)
     
     # Prepare label mappings.
     # We'll include these in the model's config to get human readable labels in the Inference API.
-    label2id, id2label = get_label_mappings(dataset["train"].features["labels"].names)
+    label2id, id2label = get_label_mappings(dataset_dict["train"].features["labels"].names)
     
     image_processor = get_image_processor(model_args)
     
-    dataset = add_transforms(dataset, image_processor, training_args, data_args)
+    dataset_dict = add_transforms(dataset_dict, image_processor, training_args, data_args)
 
     logger.info("Dataset initialized")
 
-    total_optimization_steps = int(len(dataset['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
+    total_optimization_steps = int(len(dataset_dict['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
     config = get_model_config(model_args, label2id, id2label, training_args.do_train, total_optimization_steps)
 
     logger.info(f"Loading 'DeiTHighwayForImageClassification' model with {model_args.backbone} backbone")
@@ -786,8 +788,8 @@ def main():
     trainer = TrainerwithExits(
         model=model,
         args=training_args,
-        train_dataset=dataset["train"] if training_args.do_train else None,
-        eval_dataset=dataset["validation"] if training_args.do_eval else None,
+        train_dataset=dataset_dict["train"] if training_args.do_train else None,
+        eval_dataset=dataset_dict["validation"] if training_args.do_eval else None,
         compute_metrics=compute_metrics,
         tokenizer=image_processor,
         data_collator=collate_fn,

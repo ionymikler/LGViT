@@ -46,7 +46,7 @@ class DeiTEncoder(nn.Module):
         self.logger = configure_logger(getLogger(self.name))
 
         self.config = config
-        self.layer = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
         self.num_early_exits = config.num_early_exits
@@ -179,7 +179,7 @@ class DeiTEncoder(nn.Module):
             # store the number of times that the predictions remain confident in consecutive layers
             pct = 0
 
-        for i, layer_module in enumerate(self.layer):
+        for i, layer_module in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
@@ -336,7 +336,7 @@ class DeiTModel(DeiTPreTrainedModel):
         class PreTrainedModel
         """
         for layer, heads in heads_to_prune.items():
-            self.encoder.layer[layer].attention.prune_heads(heads)
+            self.encoder.layers[layer].attention.prune_heads(heads)
 
     def forward(
             self,
@@ -668,7 +668,7 @@ class DeiTHighwayForImageClassification_distillation(DeiTPreTrainedModel):
             with torch.no_grad():
                 for i in range(self.num_layers):
                     layer_head_mask = head_mask[i] if head_mask is not None else None
-                    layer_outputs = self.deit.encoder.layer[i](hidden_states, layer_head_mask)
+                    layer_outputs = self.deit.encoder.layers[i](hidden_states, layer_head_mask)
                     hidden_states = layer_outputs[0]
                     hidden_list.append((hidden_states,))
                     if 'distillation' in self.config.train_strategy:
