@@ -147,8 +147,6 @@ model = DeiTHighwayForImageClassification.from_pretrained(
     ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
 )
 print('model loaded')
-model.deit.encoder
-
 
 X = dataset_dict["train"][0]["pixel_values"]
 X = torch.unsqueeze(X, 0) # make X into batch shape
