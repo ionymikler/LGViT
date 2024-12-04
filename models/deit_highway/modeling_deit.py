@@ -235,7 +235,7 @@ class DeiTSelfOutput(nn.Module):
 class DeiTAttention(nn.Module):
     def __init__(self, config: DeiTConfig) -> None:
         super().__init__()
-        self.attention = DeiTSelfAttention(config)
+        self.self_attention = DeiTSelfAttention(config)
         self.output = DeiTSelfOutput(config)
         self.pruned_heads = set()
 
@@ -243,18 +243,18 @@ class DeiTAttention(nn.Module):
         if len(heads) == 0:
             return
         heads, index = find_pruneable_heads_and_indices(
-            heads, self.attention.num_attention_heads, self.attention.attention_head_size, self.pruned_heads
+            heads, self.self_attention.num_attention_heads, self.self_attention.attention_head_size, self.pruned_heads
         )
 
         # Prune linear layers
-        self.attention.query = prune_linear_layer(self.attention.query, index)
-        self.attention.key = prune_linear_layer(self.attention.key, index)
-        self.attention.value = prune_linear_layer(self.attention.value, index)
+        self.self_attention.query = prune_linear_layer(self.self_attention.query, index)
+        self.self_attention.key = prune_linear_layer(self.self_attention.key, index)
+        self.self_attention.value = prune_linear_layer(self.self_attention.value, index)
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.attention.num_attention_heads = self.attention.num_attention_heads - len(heads)
-        self.attention.all_head_size = self.attention.attention_head_size * self.attention.num_attention_heads
+        self.self_attention.num_attention_heads = self.self_attention.num_attention_heads - len(heads)
+        self.self_attention.all_head_size = self.self_attention.attention_head_size * self.self_attention.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
@@ -263,7 +263,7 @@ class DeiTAttention(nn.Module):
         head_mask: Optional[torch.Tensor] = None,
         output_attentions: bool = False,
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        self_outputs = self.attention(hidden_states, head_mask, output_attentions)
+        self_outputs = self.self_attention(hidden_states, head_mask, output_attentions)
 
         attention_output = self.output(self_outputs[0], hidden_states)
 
