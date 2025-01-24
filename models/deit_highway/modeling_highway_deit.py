@@ -11,9 +11,13 @@ import torch.utils.checkpoint
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from transformers import PretrainedConfig
-from modeling_deit import DeiTEmbeddings, DeiTLayer, DeiTPreTrainedModel, DeiTPatchEmbeddings
-from configuration_deit import DeiTConfig
-from models.deit_highway.highway import ViTHighway, DeiTHighway, DeiTHighway_v2, ViT_EE_Highway
+
+from logging import getLogger
+
+# local
+from .modeling_deit import DeiTEmbeddings, DeiTLayer, DeiTPreTrainedModel, DeiTPatchEmbeddings
+from .configuration_deit import DeiTConfig, configure_logger
+from .highway import ViTHighway, DeiTHighway, DeiTHighway_v2, ViT_EE_Highway
 
 
 def CrossEntropy(outputs, targets, temperature):
@@ -26,12 +30,10 @@ def entropy(x):
     x = torch.softmax(x, dim=-1)  # softmax normalized prob distribution
     return -torch.sum(x * torch.log(x), dim=-1)  # entropy calculation on probs: -\sum(p \ln(p))
 
-
 def confidence(x):
     # x: torch.Tensor, logits BEFORE softmax
     softmax = torch.softmax(x, dim=-1)
     return torch.max(softmax)
-
 
 def prediction(x):
     # x: torch.Tensor, logits BEFORE softmax
@@ -41,25 +43,30 @@ def prediction(x):
 class DeiTEncoder(nn.Module):
     def __init__(self, config: DeiTConfig):
         super(DeiTEncoder, self).__init__()
+        self.logger = configure_logger(getLogger(self.name))
+
         self.config = config
-        self.layer = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
         self.num_early_exits = config.num_early_exits
         
-        print(f'backbone:{config.backbone}')
-        print(f'exit_type:{config.highway_type}')
+        self.logger.info(f'backbone:{config.backbone}')
+        self.logger.info(f'exit_type:{config.highway_type}')
         self.init_highway()
 
         self.exit_strategy = config.exit_strategy
         self.train_strategy = config.train_strategy
         
         self.use_lte = True if self.exit_strategy == 'gumbel_lte' else False
-        print(f'use_lte:{self.use_lte}')
+        self.logger.info(f'use_lte:{self.use_lte}')
         
         self.set_early_exit_threshold(self.config.threshold)
         self.set_early_exit_position()
-
+    
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     def init_highway(self):
         config = self.config
@@ -123,7 +130,7 @@ class DeiTEncoder(nn.Module):
                 self.position_exits = position_exits
         # self.position_exits = [i for i in range(self.num_early_exits)]
 
-        print('The exits are in position:', position_exits)
+        self.logger.info(f'The exits are in position: {position_exits}')
         self.position_exits = {int(position) - 1: index for index, position in enumerate(self.position_exits)}
 
         # self.position_exits = {int((num_hidden_layers/self.num_early_exits)*(i+1))-1:i for i in range(self.num_early_exits)}
@@ -172,7 +179,7 @@ class DeiTEncoder(nn.Module):
             # store the number of times that the predictions remain confident in consecutive layers
             pct = 0
 
-        for i, layer_module in enumerate(self.layer):
+        for i, layer_module in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
@@ -329,7 +336,7 @@ class DeiTModel(DeiTPreTrainedModel):
         class PreTrainedModel
         """
         for layer, heads in heads_to_prune.items():
-            self.encoder.layer[layer].attention.prune_heads(heads)
+            self.encoder.layers[layer].attention.prune_heads(heads)
 
     def forward(
             self,
@@ -369,13 +376,14 @@ class DeiTModel(DeiTPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
+        
         sequence_output = encoder_outputs[0]
         sequence_output = self.layernorm(sequence_output)
-        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None #QUESTION: What is the pooler for? is it standard?
 
         head_outputs = (sequence_output, pooled_output) if pooled_output is not None else (sequence_output,)
 
-        # retrun sequence_output, pooled_output, (hidden_states), (attentions), highway exits
+        # return sequence_output, pooled_output, (hidden_states), (attentions), highway exits
         return head_outputs + encoder_outputs[1:]
 
 
@@ -388,15 +396,15 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
     def __init__(self, config: DeiTConfig, train_highway=True):
         super(DeiTHighwayForImageClassification, self).__init__(config)
 
-        self.config = config
+        self.config: DeiTConfig = config
         self.num_labels = config.num_labels
         self.num_layers = config.num_hidden_layers
-        self.train_highway = train_highway
+        self.train_highway:bool = train_highway
         self.exit_strategy = config.exit_strategy
         self.train_strategy = config.train_strategy
         self.loss_coefficient = config.loss_coefficient
-        self.homo_loss_coefficient = config.homo_loss_coefficient
-        self.hete_loss_coefficient = config.hete_loss_coefficient
+        self.homo_loss_coefficient = config.homo_coefficient
+        self.hete_loss_coefficient = config.hete_coefficient
 
         self.stage = 0 # for alternating training
 
@@ -420,8 +428,8 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
             pixel_values: Optional[torch.Tensor] = None,
             head_mask: Optional[torch.Tensor] = None,
             labels: Optional[torch.Tensor] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
+            return_attentions: Optional[bool] = None,
+            return_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
             output_layer=-1,
     ):
@@ -432,16 +440,15 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
         '''
         exit_layer = self.num_layers
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        return_hidden_states = (
+            return_hidden_states if return_hidden_states is not None else self.config.output_hidden_states
         )
-        
         try:
             outputs = self.deit(
                 pixel_values,
                 head_mask=head_mask,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
+                output_attentions=return_attentions,
+                output_hidden_states=return_hidden_states,
                 return_dict=return_dict, )
             #  last_hidden_state(sequence_output), pooler_output, (hidden_states), (attentions), highway_exits
 
@@ -575,7 +582,7 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
                     loss_all = (1 - distill_coef) * (sum(highway_losses) + loss) / (
                                 len(highway_losses) + 1) + distill_coef * sum(
                         distillation_losses) / len(distillation_losses)
-                    if output_hidden_states:
+                    if return_hidden_states:
                         loss_all += sum(feature_losses) / len(feature_losses)
                     outputs = (loss_all,) + outputs
                 else:
@@ -590,9 +597,8 @@ class DeiTHighwayForImageClassification(DeiTPreTrainedModel):
             if output_layer >= 0:
                 position = self.deit.encoder.position_exits[output_layer - 1]
                 outputs = (outputs[0],) + (highway_logits_all[position],) + outputs[2:-1] + (output_layer,) ## use the highway of the last layer
-
+        
         return outputs
-
 
 class DeiTHighwayForImageClassification_distillation(DeiTPreTrainedModel):
     def __init__(self, config: DeiTConfig, train_highway=False):
@@ -662,7 +668,7 @@ class DeiTHighwayForImageClassification_distillation(DeiTPreTrainedModel):
             with torch.no_grad():
                 for i in range(self.num_layers):
                     layer_head_mask = head_mask[i] if head_mask is not None else None
-                    layer_outputs = self.deit.encoder.layer[i](hidden_states, layer_head_mask)
+                    layer_outputs = self.deit.encoder.layers[i](hidden_states, layer_head_mask)
                     hidden_states = layer_outputs[0]
                     hidden_list.append((hidden_states,))
                     if 'distillation' in self.config.train_strategy:

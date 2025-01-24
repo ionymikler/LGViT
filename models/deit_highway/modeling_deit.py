@@ -38,7 +38,9 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from configuration_deit import DeiTConfig
+
+# Local
+from .configuration_deit import DeiTConfig
 
 
 logger = logging.get_logger(__name__)
@@ -84,9 +86,9 @@ class DeiTEmbeddings(nn.Module):
             self.cls_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size))
             self.position_embeddings = nn.Parameter(torch.zeros(1, num_patches + 1, config.hidden_size))
                 
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size)) if use_mask_token else None
-        self.patch_embeddings = DeiTPatchEmbeddings(config)
-        num_patches = self.patch_embeddings.num_patches
+        # self.mask_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size)) if use_mask_token else None
+        # self.patch_embeddings = DeiTPatchEmbeddings(config)
+        # num_patches = self.patch_embeddings.num_patches
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, pixel_values: torch.Tensor, bool_masked_pos: Optional[torch.BoolTensor] = None) -> torch.Tensor:
@@ -119,7 +121,7 @@ class DeiTPatchEmbeddings(nn.Module):
     Transformer.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: DeiTConfig):
         super().__init__()
         image_size, patch_size = config.image_size, config.patch_size
         num_channels, hidden_size = config.num_channels, config.hidden_size
@@ -233,7 +235,7 @@ class DeiTSelfOutput(nn.Module):
 class DeiTAttention(nn.Module):
     def __init__(self, config: DeiTConfig) -> None:
         super().__init__()
-        self.attention = DeiTSelfAttention(config)
+        self.self_attention = DeiTSelfAttention(config)
         self.output = DeiTSelfOutput(config)
         self.pruned_heads = set()
 
@@ -241,18 +243,18 @@ class DeiTAttention(nn.Module):
         if len(heads) == 0:
             return
         heads, index = find_pruneable_heads_and_indices(
-            heads, self.attention.num_attention_heads, self.attention.attention_head_size, self.pruned_heads
+            heads, self.self_attention.num_attention_heads, self.self_attention.attention_head_size, self.pruned_heads
         )
 
         # Prune linear layers
-        self.attention.query = prune_linear_layer(self.attention.query, index)
-        self.attention.key = prune_linear_layer(self.attention.key, index)
-        self.attention.value = prune_linear_layer(self.attention.value, index)
+        self.self_attention.query = prune_linear_layer(self.self_attention.query, index)
+        self.self_attention.key = prune_linear_layer(self.self_attention.key, index)
+        self.self_attention.value = prune_linear_layer(self.self_attention.value, index)
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.attention.num_attention_heads = self.attention.num_attention_heads - len(heads)
-        self.attention.all_head_size = self.attention.attention_head_size * self.attention.num_attention_heads
+        self.self_attention.num_attention_heads = self.self_attention.num_attention_heads - len(heads)
+        self.self_attention.all_head_size = self.self_attention.attention_head_size * self.self_attention.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
@@ -261,7 +263,7 @@ class DeiTAttention(nn.Module):
         head_mask: Optional[torch.Tensor] = None,
         output_attentions: bool = False,
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        self_outputs = self.attention(hidden_states, head_mask, output_attentions)
+        self_outputs = self.self_attention(hidden_states, head_mask, output_attentions)
 
         attention_output = self.output(self_outputs[0], hidden_states)
 
@@ -362,6 +364,7 @@ class DeiTEncoder(nn.Module):
         output_hidden_states: bool = False,
         return_dict: bool = True,
     ) -> Union[tuple, BaseModelOutput]:
+        
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
 

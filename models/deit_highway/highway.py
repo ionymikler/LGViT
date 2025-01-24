@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from timm.models.vision_transformer import Mlp
 from timm.models.layers import DropPath
 
-from configuration_deit import DeiTConfig
-from modeling_deit import DeiTPooler, DeiTLayer, DeiTAttention
+# Local
+from .configuration_deit import DeiTConfig
+from .modeling_deit import DeiTPooler, DeiTLayer, DeiTAttention
 
 class highway_conv_normal(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):

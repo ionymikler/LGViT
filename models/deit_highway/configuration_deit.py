@@ -14,6 +14,7 @@
 # limitations under the License.
 """ DeiT model configuration"""
 
+import logging
 from collections import OrderedDict
 from typing import Mapping
 
@@ -21,10 +22,22 @@ from packaging import version
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.onnx import OnnxConfig
-from transformers.utils import logging
 
+def configure_logger(logger: logging.Logger,log_level=logging.DEBUG, log_filepath=None) -> logging.Logger:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s][%(name)s][%(asctime)s]: %(message)s')
+    formatter.default_time_format = '%H:%M:%S'
+    formatter.default_msec_format = '%s.%03d'
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(log_level)
 
-logger = logging.get_logger(__name__)
+    # if log_filepath:
+    #     file_handler = logging.FileHandler(log_filepath)
+    #     file_handler.setFormatter(formatter)
+    #     logger.addHandler(file_handler)
+
+    return logger
 
 DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "facebook/deit-base-distilled-patch16-224": (
@@ -95,33 +108,33 @@ class DeiTConfig(PretrainedConfig):
 
     def __init__(
         self,
-        hidden_size=768,
-        num_hidden_layers=12,
-        num_attention_heads=12,
-        intermediate_size=3072,
+        attention_probs_dropout_prob=0.0,
+        backbone = 'ViT',
+        encoder_ensemble=False,
+        encoder_stride=16,
+        exit_strategy="entropy",  # entropy, confidence, patience, patient_and_confident
+        hete_coefficient=0.01,
         hidden_act="gelu",
         hidden_dropout_prob=0.0,
-        attention_probs_dropout_prob=0.0,
-        initializer_range=0.02,
-        layer_norm_eps=1e-12,
-        is_encoder_decoder=False,
-        image_size=224,
-        patch_size=16,
-        num_channels=3,
-        qkv_bias=True,
-        encoder_stride=16,
-        num_early_exits=4,
-        position_exits=None,
-        encoder_ensemble=False,
-        exit_strategy="entropy",  # entropy, confidence, patience, patient_and_confident
-        train_strategy="normal",  # weighted, alternating
+        hidden_size=768,
         highway_type='linear',
-        loss_coefficient=0.3,
         homo_coefficient=0.01,
-        hete_coefficient=0.01,
+        image_size=224,
+        initializer_range=0.02,
+        intermediate_size=3072,
+        is_encoder_decoder=False,
+        layer_norm_eps=1e-12,
+        loss_coefficient=0.3,
+        num_attention_heads=12,
+        num_channels=3,
+        num_early_exits=4,
+        num_hidden_layers=12,
         output_hidden_states=False,
-        backbone = 'ViT',
+        patch_size=16,
+        position_exits=None,
+        qkv_bias=True,
         threshold = None,
+        train_strategy="normal",  # weighted, alternating
         **kwargs
     ):
         super().__init__(**kwargs)

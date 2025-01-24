@@ -10,19 +10,26 @@ First, clone the repository locally:
 git clone https://github.com/lostsword/LGViT
 ```
 
-Then, install PyTorch and [transformers 4.26.0](https://github.com/huggingface/transformers)
+Create a conda environment and activate it:
 
 ```bash
 conda create -n lgvit python=3.9.13
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
-pip install transformers==4.26.0 datasets==2.9.0 evaluate==0.4.0 timm==0.6.13 wandb==0.14.2 ipykernel scikit-learn
+conda activate lgvit
 ```
 
-Enter the `scripts` folder to execute the scripts for training and evaluation
+Then, install PyTorch and torchvision (torchaudio not needed) following the [official instructions](https://pytorch.org/get-started/locally/). For example, for CUDA 11.3, you can use the following command:
 
 ```bash
-cd ./scripts
+python -m pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
 ```
+
+Then, install the libraries from the `requirements.txt` file:
+  
+```bash
+python -m pip install -r requirements.txt
+```
+
+In `/scripts` you'll find bash scripts for training and evaluation:
 
 - **train_base_deit.sh / train_base_swin.sh**
 

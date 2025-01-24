@@ -1,1 +1,6 @@
+# by-products
 *.pyc
+*.onnx*
+
+
+wandb/
