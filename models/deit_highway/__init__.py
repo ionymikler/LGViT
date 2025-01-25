@@ -41,8 +41,8 @@ try:
         raise OptionalDependencyNotAvailable()
 except OptionalDependencyNotAvailable:
     pass
+    logger.warning("transformers.utils.is_vision_available() is false.")
 else:
-    logger.warning("Vision available.")
     _import_structure["feature_extraction_deit"] = ["DeiTFeatureExtractor"]
     _import_structure["image_processing_deit"] = ["DeiTImageProcessor"]
 
@@ -51,8 +51,8 @@ try: # Check Torch being available
         raise OptionalDependencyNotAvailable()
 except OptionalDependencyNotAvailable:
     pass
+    logger.warning("transformers.utils.is_torch_available() is false.")
 else:
-    logger.warning("Torch available.")
     _import_structure["modeling_deit"] = [
         "DEIT_PRETRAINED_MODEL_ARCHIVE_LIST",
         "DeiTSelfAttention",

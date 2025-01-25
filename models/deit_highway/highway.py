@@ -149,7 +149,7 @@ class SelfAttention(nn.Module):
         x = (attn @ v).transpose(1, 2).reshape(B, -1, C)
         return x
 
-highway_classes = {
+HIGHWAY_CLASSES = {
     "conv_normal": highway_conv_normal,
     "conv1_1": highway_conv1_1,
     "conv2_1": highway_conv2_1,
@@ -227,7 +227,7 @@ class DeiTHighway_v2(nn.Module):
             sr_ratio = eval(highway_type[-1])
             self.mlp = GlobalSparseAttn(dim=config.hidden_size, sr_ratio=sr_ratio)
         else:
-            self.mlp = highway_classes[highway_type](config.hidden_size)
+            self.mlp = HIGHWAY_CLASSES[highway_type](config.hidden_size)
 
         self.pooler = nn.AdaptiveAvgPool1d(1)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)

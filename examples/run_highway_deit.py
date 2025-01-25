@@ -12,7 +12,6 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-
 import logging
 import os
 import sys
@@ -95,6 +94,10 @@ from lgvit_utils import DataTrainingArguments, ModelArguments, print_args
 from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 
 from models.deit_highway.configuration_deit import configure_logger
+
+# import debugpy
+# debugpy.listen(5678)
+# debugpy.wait_for_client()
 
 """ Fine-tuning a 🤗 Transformers model for image classification"""
 
@@ -654,7 +657,7 @@ def add_transforms(dataset:datasets.DatasetDict, image_processor:DeiTImageProces
 
 # Model fns
 def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, tot_optim_steps:int, save_config:bool=False):
-    logger.info(f"Loading 'DeiTConfig' with '{model_args.backbone}' backbone")
+    logger.info(f"Loading DeiTConfig with '{model_args.backbone}' backbone")
 
     if do_train:
         config = DeiTConfig.from_pretrained(
@@ -708,9 +711,13 @@ def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, to
 
     config.total_optimization_steps = tot_optim_steps
 
-    logger.info(f"Model config loaded")
+    logger.info("Model config loaded")
     return config
 
+
+def early_return():
+    logger.info("Exiting program")
+    exit()
 
 # See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
@@ -718,8 +725,8 @@ def main():
 
     model_args, data_args, training_args = get_parsed_args(parser)
 
-    # logger.info(f"model_args")
-    # print_args([model_args])
+    logger.info("model_args")
+    print_args([model_args], ["id2label", "label2id"])
 
     hf_transformers_setup(verbosity=training_args.get_process_log_level())
 
@@ -755,6 +762,36 @@ def main():
     total_optimization_steps = int(len(dataset_dict['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
     config = get_model_config(model_args, label2id, id2label, training_args.do_train, total_optimization_steps)
 
+    print_args([config], ["id2label", "label2id"], [
+        "attention_probs_dropout_prob",
+        "backbone",
+        "encoder_ensemble",
+        "encoder_stride",
+        "exit_strategy",
+        "hete_coefficient",
+        "hidden_act",
+        "hidden_dropout_prob",
+        "hidden_size",
+        "highway_type",
+        "homo_coefficient",
+        "image_size",
+        "initializer_range",
+        "intermediate_size",
+        "is_encoder_decoder",
+        "layer_norm_eps",
+        "loss_coefficient",
+        "num_attention_heads",
+        "num_channels",
+        "num_early_exits",
+        "num_hidden_layers",
+        "output_hidden_states",
+        "patch_size",
+        "position_exits",
+        "qkv_bias",
+        "threshold",
+        "train_strategy",
+    ])
+
     logger.info(f"Loading 'DeiTHighwayForImageClassification' model with {model_args.backbone} backbone")
     model = DeiTHighwayForImageClassification.from_pretrained(
         model_args.model_name_or_path,
@@ -767,7 +804,7 @@ def main():
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
 
-
+    early_return()
     ###### Trainer ######
     actions = []
     if training_args.do_train:
@@ -775,6 +812,8 @@ def main():
     if training_args.do_eval:
         actions.append("eval") 
     logger.info(f"Initializing 'Trainer' for {actions}") 
+    
+    
 
     # Load the accuracy metric from the datasets package
     metric = evaluate.load("accuracy")

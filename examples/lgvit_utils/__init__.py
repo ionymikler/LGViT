@@ -8,10 +8,15 @@ from transformers import (
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
-def print_args(args_list):
-    for args in args_list:
-        for arg in vars(args):
-            print(f"* {arg}: {getattr(args, arg)}")
+def print_args(args_list, skip_list:list=[], include_list:list=[]):
+    for args in sorted(args_list):
+        for arg in sorted(vars(args)):
+            if arg in include_list:
+                print(f"* {arg}: {getattr(args, arg)}")
+            if arg in skip_list:
+                continue
+            elif not include_list:
+                print(f"* {arg}: {getattr(args, arg)}")
 
 @dataclass
 class DataTrainingArguments:
