@@ -235,7 +235,7 @@ class DeiTSelfOutput(nn.Module):
 class DeiTAttention(nn.Module):
     def __init__(self, config: DeiTConfig) -> None:
         super().__init__()
-        self.self_attention = DeiTSelfAttention(config)
+        self.attention = DeiTSelfAttention(config)
         self.output = DeiTSelfOutput(config)
         self.pruned_heads = set()
 

@@ -711,7 +711,6 @@ def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, to
 
     config.total_optimization_steps = tot_optim_steps
 
-    logger.info("Model config loaded")
     return config
 
 
@@ -725,8 +724,8 @@ def main():
 
     model_args, data_args, training_args = get_parsed_args(parser)
 
-    logger.info("model_args")
-    print_args([model_args], ["id2label", "label2id"])
+    # logger.info("model_args")
+    # print_args([model_args], ["id2label", "label2id"])
 
     hf_transformers_setup(verbosity=training_args.get_process_log_level())
 
@@ -761,6 +760,7 @@ def main():
 
     total_optimization_steps = int(len(dataset_dict['train']) // training_args.per_device_train_batch_size * training_args.num_train_epochs)
     config = get_model_config(model_args, label2id, id2label, training_args.do_train, total_optimization_steps)
+    logger.info("Model config loaded")
 
     print_args([config], ["id2label", "label2id"], [
         "attention_probs_dropout_prob",
@@ -803,6 +803,11 @@ def main():
         # use_auth_token=True if model_args.use_auth_token else None,
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
+    
+    str_match = "" # 
+    for key, value in model.state_dict().items():
+        if str_match in key:
+            print(f"{key}: {value.shape}")
 
     early_return()
     ###### Trainer ######

@@ -46,7 +46,7 @@ class DeiTEncoder(nn.Module):
         self.logger = configure_logger(getLogger(self.name))
 
         self.config = config
-        self.layers = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList([DeiTLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
         self.num_early_exits = config.num_early_exits
@@ -179,7 +179,7 @@ class DeiTEncoder(nn.Module):
             # store the number of times that the predictions remain confident in consecutive layers
             pct = 0
 
-        for i, layer_module in enumerate(self.layers):
+        for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
