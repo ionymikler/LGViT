@@ -58,7 +58,7 @@ args="--run_name ${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_
     --config_name $MODEL_NAME \
     --model_name_or_path ${CHECKPOINT_PATH} \
     --dataset_name $DATASET \
-    --output_dir ../outputs/$MODEL_TYPE/$DATASET/$PAPER_NAME/$EXIT_STRATEGY/ \
+    --output_dir $BASE_PATH/outputs/$MODEL_TYPE/$DATASET/$PAPER_NAME/$EXIT_STRATEGY/ \
     --remove_unused_columns False \
     --backbone $BACKBONE \
     --exit_strategy $EXIT_STRATEGY \
@@ -69,6 +69,7 @@ args="--run_name ${BACKBONE}_${EXIT_STRATEGY}_${HIGHWAY_TYPE}_${TRAIN_STRATEGY}_
     --report_to $report_to \
     --use_auth_token False \
     --ignore_mismatched_sizes $IGNORE_MISMATCHED_SIZES \
+    --highway_type $HIGHWAY_TYPE \
     "
 
 if [ "$VERBOSE" = true ]; then

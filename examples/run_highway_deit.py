@@ -90,14 +90,11 @@ else:
     IS_SAGEMAKER_MP_POST_1_10 = False
 
 # Local/Own
-from lgvit_utils import DataTrainingArguments, ModelArguments, print_args
+from lgvit_utils.args_utils import new_get_args, setup_environment, print_args
+from lgvit_utils.args_utils import DataTrainingArguments, ModelArguments
 from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 
 from models.deit_highway.configuration_deit import configure_logger
-
-# import debugpy
-# debugpy.listen(5678)
-# debugpy.wait_for_client()
 
 """ Fine-tuning a 🤗 Transformers model for image classification"""
 
@@ -714,9 +711,23 @@ def get_model_config(model_args, label2id:dict, id2label:dict, do_train:bool, to
     return config
 
 
-def early_return():
-    logger.info("Exiting program")
+def _early_exit():
+    logger.info("Exiting program EARLY")
     exit()
+
+def _compare(dataclass1, dataclass2, name1:str, name2:str):
+    if dataclass1 != dataclass2:
+        logger.warning("dataclasses do not match!")
+        at_least_one_found = False
+        for arg in vars(dataclass1):
+            if getattr(dataclass1, arg) != getattr(dataclass2, arg):
+                print(f"Difference: {arg=}: {getattr(dataclass1, arg)} != {getattr(dataclass2, arg)}")
+                at_least_one_found = True
+        if not at_least_one_found:
+            logger.error("No differences found.")
+        _early_exit()
+    else:
+        logger.info(f"{name1} and {name2} match.")
 
 # See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
@@ -724,8 +735,16 @@ def main():
 
     model_args, data_args, training_args = get_parsed_args(parser)
 
-    # logger.info("model_args")
-    # print_args([model_args], ["id2label", "label2id"])
+    base_path, checkpoint_path = setup_environment()
+    new_model_args, new_data_args, new_training_args = new_get_args(base_path, checkpoint_path)
+
+    # Compare model_args with new_model_args
+    _compare(model_args, new_model_args, "model_args", "new_model_args")
+    _compare(data_args, new_data_args, "data_args", "new_data_args")
+    _compare(training_args, new_training_args, "training_args", "new_training_args")
+    del model_args, data_args, training_args
+    model_args, data_args, training_args = new_model_args, new_data_args, new_training_args
+    # _early_exit()
 
     hf_transformers_setup(verbosity=training_args.get_process_log_level())
 
@@ -809,7 +828,7 @@ def main():
         if str_match in key:
             print(f"{key}: {value.shape}")
 
-    early_return()
+    _early_exit()
     ###### Trainer ######
     actions = []
     if training_args.do_train:
