@@ -32,8 +32,6 @@ stream_handler = StreamHandler()
 stream_handler.setLevel(DEBUG)
 logger.addHandler(stream_handler)
 
-logger.warning('test')
-
 _import_structure = {"configuration_deit": ["DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DeiTConfig", "DeiTOnnxConfig"]}
 
 try:

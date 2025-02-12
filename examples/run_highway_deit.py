@@ -90,10 +90,11 @@ else:
     IS_SAGEMAKER_MP_POST_1_10 = False
 
 # Local/Own
-from lgvit_utils.args_utils import new_get_args, setup_environment, print_args
+from lgvit_utils.args_utils import new_get_args, setup_environment, print_args, get_env_paths
 from lgvit_utils.args_utils import DataTrainingArguments, ModelArguments
-from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 
+setup_environment() # Need to run this so that the 'models' library can be imported
+from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
 from models.deit_highway.configuration_deit import configure_logger
 
 """ Fine-tuning a 🤗 Transformers model for image classification"""
@@ -731,18 +732,18 @@ def _compare(dataclass1, dataclass2, name1:str, name2:str):
 
 # See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    # parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
 
-    model_args, data_args, training_args = get_parsed_args(parser)
+    # model_args, data_args, training_args = get_parsed_args(parser)
 
-    base_path, checkpoint_path = setup_environment()
+    base_path, checkpoint_path, model_path = get_env_paths()
     new_model_args, new_data_args, new_training_args = new_get_args(base_path, checkpoint_path)
 
-    # Compare model_args with new_model_args
-    _compare(model_args, new_model_args, "model_args", "new_model_args")
-    _compare(data_args, new_data_args, "data_args", "new_data_args")
-    _compare(training_args, new_training_args, "training_args", "new_training_args")
-    del model_args, data_args, training_args
+    # # Compare model_args with new_model_args
+    # _compare(model_args, new_model_args, "model_args", "new_model_args")
+    # _compare(data_args, new_data_args, "data_args", "new_data_args")
+    # _compare(training_args, new_training_args, "training_args", "new_training_args")
+    # del model_args, data_args, training_args
     model_args, data_args, training_args = new_model_args, new_data_args, new_training_args
     # _early_exit()
 
@@ -828,7 +829,6 @@ def main():
         if str_match in key:
             print(f"{key}: {value.shape}")
 
-    _early_exit()
     ###### Trainer ######
     actions = []
     if training_args.do_train:

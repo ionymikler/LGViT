@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-import os
+import sys
 from dataclasses import dataclass, field
-from re import M
 from typing import Optional, Tuple
 from pathlib import Path
 
@@ -65,7 +64,6 @@ class DataTrainingArguments:
             raise ValueError(
                 "You must specify either a dataset name from the hub or a train and/or validation directory."
             )
-
 
 @dataclass
 class ModelArguments:
@@ -193,24 +191,25 @@ class ModelArguments:
         metadata={"help": "Will enable to load a pretrained model whose head dimensions are different."},
     )
 
-
-def setup_environment():
-    """Setup environment variables and paths."""
+def get_env_paths():
+    """Get environment paths."""
     base_path = '/home/iony/DTU/f24/thesis/code/lgvit/lgvit_repo'
     checkpoint_path = "/home/iony/DTU/f24/thesis/code/lgvit/LGViT-ViT-Cifar100"
     model_path = str(Path(base_path) / "models/deit_highway")
+    
+    return base_path, checkpoint_path, model_path
 
-    # Add paths to PYTHONPATH
-    python_paths = [base_path, model_path]
-    if 'PYTHONPATH' in os.environ:
-        current_paths = os.environ['PYTHONPATH'].split(':')
-        python_paths.extend(current_paths)
-    os.environ['PYTHONPATH'] = ':'.join(python_paths)
+def setup_environment():
+    """Setup environment variables and paths."""
+    base_path, checkpoint_path, model_path = get_env_paths()
 
-    # Set CUDA device
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    sys.path.insert(0, base_path)
+    sys.path.append(model_path)
+
+    print(f"{sys.path=}")
 
     return base_path, checkpoint_path
+
 
 def new_get_args(
     base_path: str,
@@ -247,7 +246,7 @@ def new_get_args(
     
     training_args = TrainingArguments(
         run_name=f"{backbone}_{exit_strategy}_{highway_type}_{train_strategy}_{paper_name}",
-        output_dir=f"{base_path}/outputs/{model_type}/{dataset}/{paper_name}/{exit_strategy}/",
+        output_dir=f"{base_path}/../outputs/{model_type}/{dataset}/{paper_name}/{exit_strategy}/",
         do_train=False,
         do_eval=True,
         per_device_eval_batch_size=1,
