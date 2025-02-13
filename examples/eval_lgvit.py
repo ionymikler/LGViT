@@ -516,7 +516,7 @@ def retrieve_last_checkpoint(output_dir:str, overwrite_output_dir:bool, resume_f
         return last_checkpoint
 
 # Dataset fns
-def get_dataset(data_args, model_args):
+def get_dataset_dict(data_args, model_args):
     task_arg = datasets.ImageClassification(image_column='img', label_column='fine_label')
     if data_args.dataset_name is not None:
         logger.info(f"Loading dataset '{data_args.dataset_name}' with config '{data_args.dataset_config_name}'")
@@ -563,6 +563,7 @@ def get_dataset(data_args, model_args):
         split = dataset["train"].train_test_split(data_args.train_val_split)
         dataset["train"] = split["train"]
         dataset["validation"] = split["test"]
+        logger.info(f"Split train data into train/val with {len(dataset['train'])} samples in train and {len(dataset['validation'])} samples in validation")
 
     return dataset
 
@@ -766,7 +767,7 @@ def main():
     set_seed(training_args.seed)
 
     logger.info("Initializing dataset")
-    dataset_dict = get_dataset(data_args, model_args)
+    dataset_dict = get_dataset_dict(data_args, model_args)
     
     # Prepare label mappings.
     # We'll include these in the model's config to get human readable labels in the Inference API.
@@ -833,7 +834,7 @@ def main():
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
 
-    evaluate_interactive(model, test_loader)
+    evaluate_interactive(model, test_loader,id2label)
 
     
     # str_match = "" # 
