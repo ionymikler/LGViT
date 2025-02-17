@@ -91,7 +91,7 @@ else:
 
 # Local/Own
 from lgvit_utils.args_utils import new_get_args, setup_environment, print_args, get_env_paths
-from lgvit_utils import evaluate_interactive
+from lgvit_utils import evaluate_interactive, check_conda_env
 
 setup_environment() # Need to run this so that the 'models' library can be imported
 from models.deit_highway import DeiTImageProcessor, DeiTConfig, DeiTHighwayForImageClassification
@@ -597,9 +597,10 @@ def add_transforms(dataset:datasets.DatasetDict, image_processor:DeiTImageProces
     else:
         logger.warning("No 'shortest_edge' found in image_processor.size. Using 'height' and 'width' instead.")
         size = (image_processor.size["height"], image_processor.size["width"])
-    
+    logger.debug(f"Image size: {size}")
     # transforms
     normalize = Normalize(mean=image_processor.image_mean, std=image_processor.image_std)
+    logger.debug(f"Image mean: {image_processor.image_mean}, Image std: {image_processor.image_std}")
     _train_transforms = Compose(
         [
             RandomResizedCrop(size),
@@ -733,6 +734,7 @@ def _compare(dataclass1, dataclass2, name1:str, name2:str):
 
 # See all possible arguments in src/transformers/training_args.py or by passing the --help flag to this script.
 def main():
+    check_conda_env("lgvit")
     # parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
 
     # model_args, data_args, training_args = get_parsed_args(parser)

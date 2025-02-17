@@ -19,7 +19,6 @@ from .modeling_deit import DeiTEmbeddings, DeiTLayer, DeiTPreTrainedModel, DeiTP
 from .configuration_deit import DeiTConfig, configure_logger
 from .highway import ViTHighway, DeiTHighway, DeiTHighway_v2, ViT_EE_Highway
 
-
 def CrossEntropy(outputs, targets, temperature):
     log_softmax_outputs = F.log_softmax(outputs / temperature, dim=1)
     softmax_targets = F.softmax(targets / temperature, dim=1)
@@ -114,12 +113,9 @@ class DeiTEncoder(nn.Module):
             
             
     def set_early_exit_position(self):
-
-        num_hidden_layers = self.config.num_hidden_layers
+        # NOTE: This fn was refactored slightly from og. If in doubt check og: https://github.com/falcon-xu/LGViT/blob/3147fb803ad54eadf8de85d34f43b9fb5440f3a0/models/deit_highway/modeling_highway_deit.py#L109
         self.num_early_exits = self.config.num_early_exits
         position_exits = self.config.position_exits
-
-        self.position_exits = [6, 7, 8, 9, 10, 11, 12]
 
         if position_exits is not None and isinstance(position_exits, Iterable):
             position_exits = eval(self.config.position_exits)
@@ -128,12 +124,10 @@ class DeiTEncoder(nn.Module):
                     "Lengths of config.position_exits and num_early_exits do not match, which can lead to poor training results!")
             else:
                 self.position_exits = position_exits
-        # self.position_exits = [i for i in range(self.num_early_exits)]
 
-        self.logger.info(f'The exits are in position: {position_exits}')
         self.position_exits = {int(position) - 1: index for index, position in enumerate(self.position_exits)}
+        self.logger.info(f'The exits are in position: {position_exits}')
 
-        # self.position_exits = {int((num_hidden_layers/self.num_early_exits)*(i+1))-1:i for i in range(self.num_early_exits)}
 
     def set_early_exit_threshold(self, x=None):
 

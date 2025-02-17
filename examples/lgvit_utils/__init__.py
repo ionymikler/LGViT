@@ -2,11 +2,24 @@ import torch
 import logging
 from typing import Dict
 from torch.utils.data import DataLoader
-from .logger_cfg import configure_logger
+from .logger_utils import configure_logger, yellow_txt
 
 logger = configure_logger(logging.getLogger("lgvit_utils"))
 
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def check_conda_env(conda_env_required):
+    import os
+
+    active_env = os.environ.get("CONDA_DEFAULT_ENV")
+    if active_env != conda_env_required:
+        logger.error(
+            yellow_txt(
+                f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
+            )
+        )
+        return False
+    return True
 
 def evaluate_interactive(model: torch.nn.Module, test_loader: DataLoader, id2label:Dict[int,str]) -> None:
     """
